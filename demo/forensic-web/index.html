@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>证言取证演示平台（交互原型）</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>证言取证演示平台</h1>
+      <div class="status-grid">
+        <span>案件编号：<b id="globalCaseId">CASE-2026-001</b></span>
+        <span>当前状态：<b id="globalCaseStatus">待人工复核</b></span>
+        <span>证据策略：<b>原始证据只读</b></span>
+        <span>导出状态：<b id="globalExportStatus">未导出</b></span>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <button class="nav-btn active" data-view="cases">案件列表</button>
+        <button class="nav-btn" data-view="detail">案件详情</button>
+        <button class="nav-btn" data-view="review">转写复核</button>
+        <button class="nav-btn" data-view="audit">审计与导出</button>
+      </aside>
+
+      <main class="content">
+        <section id="view-cases" class="view active">
+          <div class="card">
+            <div class="row between">
+              <h2>案件中心</h2>
+              <button id="createCaseBtn">新建演示案件</button>
+            </div>
+            <p class="muted">所有证据围绕案件流转，支持全流程追溯</p>
+            <div class="row gap">
+              <input id="caseSearch" placeholder="搜索案件编号/名称/调查员" />
+              <select id="caseStatusFilter">
+                <option value="all">全部状态</option>
+                <option value="待人工复核">待人工复核</option>
+                <option value="已形成确认稿">已形成确认稿</option>
+                <option value="证据包已导出">证据包已导出</option>
+              </select>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>案件编号</th>
+                  <th>案件名称</th>
+                  <th>调查员</th>
+                  <th>证据数</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="caseTableBody"></tbody>
+            </table>
+            <div class="kpis">
+              <div class="kpi"><label>待复核</label><b id="kpiPending">0</b></div>
+              <div class="kpi"><label>低置信片段</label><b id="kpiRisk">0</b></div>
+              <div class="kpi"><label>待确认案件</label><b id="kpiToConfirm">0</b></div>
+              <div class="kpi"><label>已导出</label><b id="kpiExported">0</b></div>
+            </div>
+            <div class="card subtle">
+              <h3>状态可视化</h3>
+              <div id="caseStatusViz" class="status-viz"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-detail" class="view">
+          <div class="grid-2">
+            <div class="card">
+              <h2>案件详情</h2>
+              <p><b>案件：</b><span id="detailCaseName"></span></p>
+              <p><b>调查员：</b><span id="detailOfficer"></span></p>
+              <p><b>状态：</b><span id="detailStatus"></span></p>
+              <div class="stepper" id="processStepper"></div>
+              <h3>最近活动</h3>
+              <ul id="recentEvents" class="timeline mini"></ul>
+            </div>
+            <div class="card">
+              <h3>上传原始音频</h3>
+              <input id="audioInput" type="file" accept="audio/*" />
+              <p class="muted">上传后将立即生成 SHA-256 并写入审计。</p>
+              <div id="evidencePanel" class="hidden">
+                <h4>证据固化成功</h4>
+                <p><b>文件名：</b><span id="evidenceName"></span></p>
+                <p><b>时长：</b><span id="evidenceDuration"></span></p>
+                <p><b>SHA-256：</b><code id="evidenceHash"></code></p>
+                <audio id="audioPlayer" controls></audio>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-review" class="view">
+          <div class="grid-3">
+            <div class="card">
+              <h3>音频回放</h3>
+              <audio id="reviewAudio" controls></audio>
+              <p>当前片段：<b id="currentSegmentId">-</b></p>
+              <div class="row gap">
+                <button id="riskPrevBtn" type="button">上一处风险</button>
+                <button id="riskNextBtn" type="button">下一处风险</button>
+              </div>
+              <canvas id="timelineCanvas" width="520" height="130"></canvas>
+              <p class="muted">蓝色：普通片段｜红色：风险片段｜白线：播放位置</p>
+            </div>
+            <div class="card">
+              <h3>机器初稿</h3>
+              <div id="segmentList" class="segment-list"></div>
+            </div>
+            <div class="card">
+              <h3>人工修订（生成新版本）</h3>
+              <p><b>原始文本</b></p>
+              <textarea id="originText" readonly></textarea>
+              <p><b>修订文本</b></p>
+              <textarea id="editText"></textarea>
+              <label>修改原因
+                <select id="editReason">
+                  <option value="">请选择</option>
+                  <option>回放确认</option>
+                  <option>口误修正</option>
+                  <option>补全日期</option>
+                  <option>更正金额</option>
+                  <option>其他</option>
+                </select>
+              </label>
+              <pre id="diffPreview" class="diff"></pre>
+              <button id="saveEditBtn">保存修订并写入审计</button>
+              <p id="editToast" class="hidden success">已生成审计记录</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-audit" class="view">
+          <div class="grid-2">
+            <div class="card">
+              <h3>审计时间线</h3>
+              <ul id="auditList" class="timeline"></ul>
+            </div>
+            <div class="card">
+              <h3>导出面板</h3>
+              <ul class="checklist">
+                <li>✅ 原始音频</li>
+                <li>✅ 机器初稿 JSON</li>
+                <li>✅ 人工确认稿 JSON</li>
+                <li>✅ 审计日志 JSON</li>
+                <li>✅ 哈希清单</li>
+                <li>✅ 正式证言 PDF（占位）</li>
+              </ul>
+              <div class="row gap">
+                <button id="exportJsonBtn">导出结构化 JSON</button>
+                <button id="markExportBtn">标记已导出</button>
+              </div>
+              <p id="exportTip" class="muted">导出后将写入 evidence_exported 审计事件。</p>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
