@@ -10,38 +10,46 @@
     <header class="topbar">
       <h1>证言取证演示平台</h1>
       <div class="status-grid">
-        <span>案件编号：<b id="globalCaseId">CASE-2026-001</b></span>
-        <span>当前状态：<b id="globalCaseStatus">待人工复核</b></span>
-        <span>证据策略：<b>原始证据只读</b></span>
-        <span>导出状态：<b id="globalExportStatus">未导出</b></span>
+        <span>当前案件：<b id="globalCaseId">-</b></span>
+        <span>案件状态：<b id="globalCaseStatus">未选择</b></span>
+        <span>当前证据：<b id="globalEvidenceId">-</b></span>
+        <span>当前阶段：<b id="globalStageLabel">未进入工作台</b></span>
       </div>
     </header>
 
     <div class="layout">
       <aside class="sidebar">
-        <button class="nav-btn active" data-view="cases">案件列表</button>
-        <button class="nav-btn" data-view="detail">案件详情</button>
-        <button class="nav-btn" data-view="review">转写复核</button>
-        <button class="nav-btn" data-view="audit">审计与导出</button>
+        <button class="nav-btn active" data-view="cases">案件中心</button>
+        <button id="workspaceNavBtn" class="nav-btn" data-view="workspace" disabled>当前案件工作台</button>
+        <div class="sidebar-note">
+          <b>演示原则</b>
+          <span>原始证据不可删除，仅支持归档管理。</span>
+        </div>
       </aside>
 
       <main class="content">
         <section id="view-cases" class="view active">
           <div class="card">
-            <div class="row between">
-              <h2>案件中心</h2>
+            <div class="row between wrap gap">
+              <div>
+                <h2>案件中心</h2>
+                <p class="muted">先选案件，再进入案件工作台处理多条语音证据。</p>
+              </div>
               <button id="createCaseBtn">新建演示案件</button>
             </div>
-            <p class="muted">所有证据围绕案件流转，支持全流程追溯</p>
-            <div class="row gap">
+
+            <div class="toolbar">
               <input id="caseSearch" placeholder="搜索案件编号/名称/调查员" />
               <select id="caseStatusFilter">
                 <option value="all">全部状态</option>
+                <option value="原始证据已固化">原始证据已固化</option>
+                <option value="自动转写完成">自动转写完成</option>
                 <option value="待人工复核">待人工复核</option>
                 <option value="已形成确认稿">已形成确认稿</option>
                 <option value="证据包已导出">证据包已导出</option>
               </select>
             </div>
+
             <table>
               <thead>
                 <tr>
@@ -49,112 +57,150 @@
                   <th>案件名称</th>
                   <th>调查员</th>
                   <th>证据数</th>
-                  <th>状态</th>
+                  <th>案件状态</th>
                   <th>操作</th>
                 </tr>
               </thead>
               <tbody id="caseTableBody"></tbody>
             </table>
+
             <div class="kpis">
-              <div class="kpi"><label>待复核</label><b id="kpiPending">0</b></div>
+              <div class="kpi"><label>待复核案件</label><b id="kpiPending">0</b></div>
               <div class="kpi"><label>低置信片段</label><b id="kpiRisk">0</b></div>
-              <div class="kpi"><label>待确认案件</label><b id="kpiToConfirm">0</b></div>
-              <div class="kpi"><label>已导出</label><b id="kpiExported">0</b></div>
+              <div class="kpi"><label>已归档证据</label><b id="kpiArchived">0</b></div>
+              <div class="kpi"><label>已导出案件</label><b id="kpiExported">0</b></div>
             </div>
+
             <div class="card subtle">
-              <h3>状态可视化</h3>
+              <h3>案件状态分布</h3>
               <div id="caseStatusViz" class="status-viz"></div>
             </div>
           </div>
         </section>
 
-        <section id="view-detail" class="view">
-          <div class="grid-2">
-            <div class="card">
-              <h2>案件详情</h2>
-              <p><b>案件：</b><span id="detailCaseName"></span></p>
-              <p><b>调查员：</b><span id="detailOfficer"></span></p>
-              <p><b>状态：</b><span id="detailStatus"></span></p>
-              <div class="stepper" id="processStepper"></div>
-              <h3>最近活动</h3>
-              <ul id="recentEvents" class="timeline mini"></ul>
-            </div>
-            <div class="card">
-              <h3>上传原始音频</h3>
-              <input id="audioInput" type="file" accept="audio/*" />
-              <p class="muted">上传后将立即生成 SHA-256 并写入审计。</p>
-              <div id="evidencePanel" class="hidden">
-                <h4>证据固化成功</h4>
-                <p><b>文件名：</b><span id="evidenceName"></span></p>
-                <p><b>时长：</b><span id="evidenceDuration"></span></p>
-                <p><b>SHA-256：</b><code id="evidenceHash"></code></p>
-                <audio id="audioPlayer" controls></audio>
+        <section id="view-workspace" class="view">
+          <div class="workspace-stack">
+            <div class="card workspace-header">
+              <div class="row between wrap gap">
+                <div>
+                  <button id="backToCasesBtn" class="ghost-btn" type="button">← 返回案件中心</button>
+                  <h2 id="workspaceCaseTitle">案件工作台</h2>
+                  <p id="workspaceCaseSubtitle" class="muted">案件内按证据和阶段进行操作。</p>
+                </div>
+                <div class="status-chip-row">
+                  <span class="status-chip readonly">原始证据只读</span>
+                  <span class="status-chip" id="workspaceCaseStatusChip">未选择案件</span>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
 
-        <section id="view-review" class="view">
-          <div class="grid-3">
-            <div class="card">
-              <h3>音频回放</h3>
-              <audio id="reviewAudio" controls></audio>
-              <p>当前片段：<b id="currentSegmentId">-</b></p>
-              <div class="row gap">
-                <button id="riskPrevBtn" type="button">上一处风险</button>
-                <button id="riskNextBtn" type="button">下一处风险</button>
+            <div class="grid-2">
+              <div class="card">
+                <h3>案件基础信息</h3>
+                <div class="info-grid">
+                  <div><label>案件编号</label><b id="workspaceCaseId">-</b></div>
+                  <div><label>调查员</label><b id="workspaceOfficer">-</b></div>
+                  <div><label>案件状态</label><b id="workspaceStatus">-</b></div>
+                  <div><label>证据策略</label><b>原始证据不可删除，仅可归档</b></div>
+                </div>
+                <div class="kpis compact">
+                  <div class="kpi"><label>证据总数</label><b id="workspaceEvidenceCount">0</b></div>
+                  <div class="kpi"><label>待复核</label><b id="workspacePendingCount">0</b></div>
+                  <div class="kpi"><label>已归档</label><b id="workspaceArchivedCount">0</b></div>
+                </div>
               </div>
-              <canvas id="timelineCanvas" width="520" height="130"></canvas>
-              <p class="muted">蓝色：普通片段｜红色：风险片段｜白线：播放位置</p>
-            </div>
-            <div class="card">
-              <h3>机器初稿</h3>
-              <div id="segmentList" class="segment-list"></div>
-            </div>
-            <div class="card">
-              <h3>人工修订（生成新版本）</h3>
-              <p><b>原始文本</b></p>
-              <textarea id="originText" readonly></textarea>
-              <p><b>修订文本</b></p>
-              <textarea id="editText"></textarea>
-              <label>修改原因
-                <select id="editReason">
-                  <option value="">请选择</option>
-                  <option>回放确认</option>
-                  <option>口误修正</option>
-                  <option>补全日期</option>
-                  <option>更正金额</option>
-                  <option>其他</option>
-                </select>
-              </label>
-              <pre id="diffPreview" class="diff"></pre>
-              <button id="saveEditBtn">保存修订并写入审计</button>
-              <p id="editToast" class="hidden success">已生成审计记录</p>
-            </div>
-          </div>
-        </section>
 
-        <section id="view-audit" class="view">
-          <div class="grid-2">
-            <div class="card">
-              <h3>审计时间线</h3>
-              <ul id="auditList" class="timeline"></ul>
-            </div>
-            <div class="card">
-              <h3>导出面板</h3>
-              <ul class="checklist">
-                <li>✅ 原始音频</li>
-                <li>✅ 机器初稿 JSON</li>
-                <li>✅ 人工确认稿 JSON</li>
-                <li>✅ 审计日志 JSON</li>
-                <li>✅ 哈希清单</li>
-                <li>✅ 正式证言 PDF（占位）</li>
-              </ul>
-              <div class="row gap">
-                <button id="exportJsonBtn">导出结构化 JSON</button>
-                <button id="markExportBtn">标记已导出</button>
+              <div class="card">
+                <h3>新增语音证据</h3>
+                <p class="muted">上传原始音频后，系统会自动生成 SHA-256，并模拟推进到“待人工复核”。</p>
+                <input id="workspaceAudioInput" type="file" accept="audio/*" />
+                <p class="muted">提示：上传只会新增证据，原始证据不会被覆盖。</p>
               </div>
-              <p id="exportTip" class="muted">导出后将写入 evidence_exported 审计事件。</p>
+            </div>
+
+            <div class="card">
+              <div class="row between wrap gap">
+                <div>
+                  <h3>案件情况分析文件</h3>
+                  <p class="muted">支持 PDF / Word / TXT 等格式。上传后会生成水印记录，不能删除，只能决定是否选作本地语音证据分析的参考材料。</p>
+                </div>
+                <div class="status-chip-row">
+                  <span class="status-chip" id="referenceSelectedChip">已选参考 0 份</span>
+                </div>
+              </div>
+
+              <input id="referenceFileInput" type="file" accept=".pdf,.doc,.docx,.txt,.md,.rtf,.odt" />
+              <div class="readonly-box">
+                分析文件上传后会保留水印记录和审计痕迹，不提供删除能力；仅可切换是否纳入当前案件的语音风险提示参考。
+              </div>
+              <div id="referenceSummary" class="reference-summary"></div>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>材料ID</th>
+                    <th>文件名</th>
+                    <th>类型</th>
+                    <th>上传时间</th>
+                    <th>水印记录</th>
+                    <th>参考状态</th>
+                    <th>风险分析主题</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="referenceTableBody"></tbody>
+              </table>
+            </div>
+
+            <div class="card">
+              <div class="row between wrap gap">
+                <div>
+                  <h3>语音证据列表</h3>
+                  <p class="muted">每条证据单独管理阶段。默认隐藏已归档记录。</p>
+                </div>
+                <label class="toggle-row">
+                  <input id="showArchivedToggle" type="checkbox" />
+                  显示已归档
+                </label>
+              </div>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>证据ID</th>
+                    <th>文件名</th>
+                    <th>上传时间</th>
+                    <th>SHA-256</th>
+                    <th>时长</th>
+                    <th>当前阶段</th>
+                    <th>归档状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="evidenceTableBody"></tbody>
+              </table>
+            </div>
+
+            <div class="card">
+              <div class="row between wrap gap">
+                <div>
+                  <h3>阶段流程入口</h3>
+                  <p id="stageGuardText" class="muted">请选择一条证据查看，阶段入口会跟随当前证据切换。</p>
+                </div>
+                <div class="selected-evidence-meta">
+                  <span>当前证据：<b id="selectedEvidenceId">-</b></span>
+                  <span>当前阶段：<b id="selectedEvidenceStage">-</b></span>
+                  <span>归档状态：<b id="selectedEvidenceArchive">-</b></span>
+                </div>
+              </div>
+              <div id="stageCards" class="stage-cards"></div>
+            </div>
+
+            <div id="stageContent"></div>
+
+            <div class="card">
+              <h3>案件最近活动</h3>
+              <ul id="caseActivityList" class="timeline"></ul>
             </div>
           </div>
         </section>
